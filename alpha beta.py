@@ -418,3 +418,369 @@ A15: Try moves in roughly best-to-worst order:
      ```
      Better move ordering leads to more alpha-beta cutoffs
 """
+
+
+
+Nice — let’s do this clearly and fully: first a concise theoretical explanation of **Minimax + Alpha-Beta pruning**, then a **line-by-line walkthrough** of your Tic-Tac-Toe Python code with small clarifying notes and why each bit exists. I’ll keep it practical and not too wordy, but thorough.
+
+# Theory: Minimax + Alpha-Beta (compact & clear)
+
+**Goal:** build an *unbeatable* AI for two-player zero-sum perfect-information games (like Tic-Tac-Toe).
+
+* **Minimax idea:** consider the game as a tree of alternating moves.
+
+  * **Maximizer** (AI, `X`) chooses moves to **maximize** the score.
+  * **Minimizer** (human, `O`) chooses moves to **minimize** the score.
+  * Leaf nodes are terminal states (win/lose/draw); their numeric values propagate up the tree. Max picks the child with largest value, Min picks smallest.
+* **Alpha-Beta pruning:** same result as full minimax but skip exploring branches that cannot influence the final decision.
+
+  * `alpha` = best (largest) value found so far along path to root for Maximizer.
+  * `beta`  = best (smallest) value found so far along path to root for Minimizer.
+  * If at any point `beta <= alpha`, that subtree cannot affect the final choice — prune it.
+
+**Why depth is used in evaluation:** subtracting/adding `depth` from terminal scores breaks ties in favor of *quicker wins* or *later losses*. Example: `10 - depth` means win sooner → larger score.
+
+**Complexity:** full minimax is O(b^d) where b=branching factor, d=depth. Alpha-Beta reduces nodes examined, sometimes dramatically, depending on move ordering.
+
+---
+
+# High-level pseudocode (minimax with alpha-beta)
+
+```
+function minimax(node, depth, isMax, alpha, beta):
+    if node is terminal:
+        return evaluate(node) adjusted by depth
+
+    if isMax:
+        best = -inf
+        for each child in children(node):
+            val = minimax(child, depth+1, False, alpha, beta)
+            best = max(best, val)
+            alpha = max(alpha, best)
+            if beta <= alpha:
+                break   # prune
+        return best
+    else: # minimizer
+        best = +inf
+        for each child in children(node):
+            val = minimax(child, depth+1, True, alpha, beta)
+            best = min(best, val)
+            beta = min(beta, best)
+            if beta <= alpha:
+                break   # prune
+        return best
+```
+
+---
+
+# Line-by-line explanation of your code
+
+I’ll explain each function and key blocks, in order. I’ll quote the function name, then explain relevant lines inside.
+
+---
+
+## Board and helpers
+
+```python
+board = [['_', '_', '_'],
+         ['_', '_', '_'],
+         ['_', '_', '_']]
+```
+
+* `board` is a 3×3 list of lists. `'_'` denotes an empty cell. `board[i][j]` addresses row `i`, column `j`. This is the shared mutable game state.
+
+```python
+def print_board():
+    for row in board:
+        print(' '.join(row))
+    print()
+```
+
+* Prints the board row by row with spaces between cells; an extra blank line for readability.
+
+```python
+def is_moves_left():
+    for row in board:
+        if '_' in row:
+            return True
+    return False
+```
+
+* Scans rows; returns `True` if any empty cell exists (game not yet filled). Otherwise `False`.
+
+```python
+def evaluate():
+    # check rows
+    for i in range(3):
+        if board[i][0] == board[i][1] == board[i][2] != '_':
+            return 10 if board[i][0] == 'X' else -10
+
+    # check columns
+    for i in range(3):
+        if board[0][i] == board[1][i] == board[2][i] != '_':
+            return 10 if board[0][i] == 'X' else -10
+
+    # main diagonal
+    if board[0][0] == board[1][1] == board[2][2] != '_':
+        return 10 if board[0][0] == 'X' else -10
+
+    # anti-diagonal
+    if board[0][2] == board[1][1] == board[2][0] != '_':
+        return 10 if board[0][2] == 'X' else -10
+
+    return 0
+```
+
+* `evaluate()` returns:
+
+  * `+10` when `X` (AI) has three in a row,
+  * `-10` when `O` (human) has three in a row,
+  * `0` if no winner (draw or non-terminal).
+* It checks rows, columns, and both diagonals in that order.
+
+---
+
+## minimax with alpha-beta
+
+```python
+def minimax(is_max, alpha, beta, depth=0):
+    score = evaluate()
+    if score == 10:
+        return score - depth
+    if score == -10:
+        return score + depth
+    if not is_moves_left():
+        return 0
+```
+
+* Evaluate terminal conditions first:
+
+  * If `score == 10` (AI already won), return `10 - depth` to prefer faster wins.
+  * If `score == -10`, return `-10 + depth` to prefer losses that happen later (less bad).
+  * If board full and no winner, return `0` → draw.
+* Note: `depth` is how many plies have been played from the original call. Using it biases solutions by move length.
+
+### Maximizer branch (`is_max == True`)
+
+```python
+if is_max:
+    best = -1000
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == '_':
+                board[i][j] = 'X'
+                value = minimax(False, alpha, beta, depth + 1)
+                board[i][j] = '_'
+                if value > best:
+                    best = value
+                if best > alpha:
+                    alpha = best
+                if beta <= alpha:
+                    return best
+    return best
+```
+
+* `best` starts very low (`-1000`) as a sentinel.
+* Loop over all empty cells (legal moves).
+
+  * Try move: set `board[i][j] = 'X'`.
+  * Recursively call `minimax` for the opponent (`is_max=False`) with `depth+1`.
+  * Undo move (backtrack).
+  * Update `best` if `value` is higher.
+  * Update `alpha` = max(current alpha, best).
+  * If `beta <= alpha` then **prune**: return `best` early (no need to examine other moves).
+* Returning `best` bubbles the best achievable score for the maximizer at this node.
+
+### Minimizer branch (`is_max == False`)
+
+```python
+else:
+    best = 1000
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == '_':
+                board[i][j] = 'O'
+                value = minimax(True, alpha, beta, depth + 1)
+                board[i][j] = '_'
+                if value < best:
+                    best = value
+                if best < beta:
+                    beta = best
+                if beta <= alpha:
+                    return best
+    return best
+```
+
+* Symmetric to maximizer:
+
+  * `best` starts very high (`1000`) sentinel.
+  * For each legal move, place `O`, evaluate deeper, undo.
+  * Update `best = min(best, value)`.
+  * Update `beta = min(beta, best)`.
+  * If `beta <= alpha`, prune and return `best`.
+
+**Important to note:** returning immediately on pruning is fine because that branch cannot affect parent choices due to alpha/beta bounds.
+
+---
+
+## find_best_move()
+
+```python
+def find_best_move():
+    best_value = -1000
+    best_move = (-1, -1)
+    for i in range(3):
+        for j in range(3):
+            if board[i][j] == '_':
+                board[i][j] = 'X'
+                move_value = minimax(False, -1000, 1000)
+                board[i][j] = '_'
+                if move_value > best_value:
+                    best_value = move_value
+                    best_move = (i, j)
+    return best_move
+```
+
+* Iterates all possible AI moves.
+* Simulates putting `X` into each empty cell.
+* Calls `minimax(False, -1000, 1000)` to evaluate the resulting position from the opponent's point of view (minimizer moves next). Note initial `alpha` = -1000, `beta` = 1000 are sentinel bounds.
+* Records the move that yields the highest `move_value`.
+* Returns the best move coordinates `(row, col)`.
+
+**Why `-1000`/`1000`?** They’re sentinel extremes ensuring the first real evaluation will update alpha/beta. Could also use `float('-inf')` and `float('inf')`.
+
+---
+
+## reset_board, play_game and main menu
+
+```python
+def reset_board():
+    for i in range(3):
+        for j in range(3):
+            board[i][j] = '_'
+```
+
+* Set every cell back to empty.
+
+```python
+def play_game():
+    reset_board()
+    print("Tic-Tac-Toe: You are 'O', AI is 'X'.")
+    print_board()
+
+    while True:
+        try:
+            row = int(input("Enter your row (1-3): ")) - 1
+            col = int(input("Enter your column (1-3): ")) - 1
+        except:
+            print("Invalid input. Enter numbers 1-3.")
+            continue
+
+        if row < 0 or row > 2 or col < 0 or col > 2:
+            print("Invalid input. Try again.")
+            continue
+
+        if board[row][col] != '_':
+            print("Cell occupied. Try again.")
+            continue
+
+        board[row][col] = 'O'
+        print_board()
+
+        if evaluate() == -10:
+            print("You win!")
+            break
+
+        if not is_moves_left():
+            print("Draw!")
+            break
+
+        move = find_best_move()
+        board[move[0]][move[1]] = 'X'
+        print("AI plays:")
+        print_board()
+
+        if evaluate() == 10:
+            print("AI wins!")
+            break
+
+        if not is_moves_left():
+            print("Draw!")
+            break
+```
+
+* `play_game()` loops human turn → evaluate → AI turn → evaluate until terminal.
+* Human enters row & col (1..3), converted to 0-based indices.
+* Input validation: bounds check and empty cell check.
+* After a human move:
+
+  * Check if human won (`evaluate() == -10`).
+  * Check draw (no moves left).
+* Then AI calculates `find_best_move()` and plays it; check if AI won or draw again.
+* Loop ends when a terminal state is reached.
+
+Main menu simple loop:
+
+```python
+while True:
+    print("Menu:")
+    print("1. Play Game")
+    print("2. Exit")
+    choice = input("Enter choice: ")
+
+    if choice == '1':
+        play_game()
+    elif choice == '2':
+        print("Goodbye!")
+        break
+    else:
+        print("Invalid choice. Enter 1 or 2.")
+```
+
+* Repeats until user exits.
+
+---
+
+# Example trace (short) — why alpha-beta prunes
+
+Suppose the AI (X) first tries center `(1,1)`. The algorithm evaluates all replies by `O`, then deeper. At some node, suppose Maximizer has already found a move with value `8` earlier; while evaluating another branch, the Minimizer finds a child with value `≤ 8` that forces `beta` to drop ≤ `alpha`. Then `beta <= alpha` occurs and the remaining moves in that subtree are skipped — they can’t raise the minimizer’s choice above the already known alternative. This saves time.
+
+In Tic-Tac-Toe the entire tree is small, but pruning still avoids many symmetric/redundant nodes.
+
+---
+
+# Small implementation suggestions / improvements
+
+1. **Use `float('-inf')` / `float('inf')`** instead of `-1000`/`1000` — clearer and safe:
+
+   ```python
+   move_value = minimax(False, float('-inf'), float('inf'))
+   ```
+2. **Move ordering:** try center then corners then edges; improves pruning.
+3. **Use `get_ordered_moves()`** function to return moves in a good order. You included such an example in your big comment — use it inside minimax loops.
+4. **Cache/evaluation micro-optimizations:** check immediate winning moves before recursion to short-circuit.
+5. **Depth limit** (not necessary here) for larger games — combine with heuristic evaluation function.
+
+---
+
+# Quick summary (so it’s easy to remember)
+
+* **Minimax**: examine all possible move sequences; maximizer picks max, minimizer picks min.
+* **Alpha-Beta**: maintain `alpha` and `beta` bounds to prune branches that can’t change the decision. Same result as minimax, but faster.
+* In your code:
+
+  * `minimax(is_max, alpha, beta, depth)` implements Minimax + Alpha-Beta.
+  * `find_best_move()` tries each first move, uses minimax to score it, picks best.
+  * `evaluate()` gives terminal scores; `depth` adjusts to prefer quicker wins.
+  * `board` is the shared state; moves are tried then undone (backtracking).
+
+---
+
+If you want, I can now:
+
+* 1. Run a small trace of a particular starting position and show the recursion tree (manually), or
+* 2. Provide a slightly refactored, cleaner version of this code with `float('-inf')`/`float('inf')`, move ordering, and comments, or
+* 3. Show an annotated call example (the sequence of minimax calls for one move) step-by-step.
+
+Which would you like next?
+
