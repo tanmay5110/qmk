@@ -1,0 +1,40 @@
+from queue import PriorityQueue
+
+def a_star(graph, start, goal, h):
+    pq = PriorityQueue()
+    pq.put((0, start))
+    g = {start: 0}
+    parent = {start: None}
+
+    while not pq.empty():
+        f, node = pq.get()
+        if node == goal:
+            break
+        for neighbor, cost in graph[node]:
+            new_g = g[node] + cost
+            if neighbor not in g or new_g < g[neighbor]:
+                g[neighbor] = new_g
+                f = new_g + h[neighbor]
+                pq.put((f, neighbor))
+                parent[neighbor] = node
+
+    path = []
+    node = goal
+    while node:
+        path.append(node)
+        node = parent[node]
+    path.reverse()
+    return path, g[goal]
+
+graph = {
+    'A':[('B',1),('C',2)],
+    'B':[('D',4),('E',2)],
+    'C':[('E',3)],
+    'D':[('G',2)],
+    'E':[('G',1)],
+    'G':[]
+}
+h = {'A':5,'B':4,'C':4,'D':2,'E':1,'G':0}
+
+path, cost = a_star(graph,'A','G',h)
+print("Path:", path, "Cost:", cost)
