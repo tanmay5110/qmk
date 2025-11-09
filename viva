@@ -1,0 +1,592 @@
+Excellent 👍 — this is the **core "AI & Search Algorithms" lab unit** (common in SPPU T.E. AI&DS, subject: *Artificial Intelligence / Search Techniques*).
+Let’s go step-by-step and build a **complete conceptual + practical guide** to all 5 problems: theory, pseudocode, Python snippets, explanation with graph examples, and viva-style insights.
+
+---
+
+# 🧠 **AI Search Algorithms — Complete Concept Guide**
+
+We’ll cover:
+
+1. Depth-First Search (DFS) & Breadth-First Search (BFS)
+2. A* (A-star) Algorithm
+3. Alpha–Beta Pruning (Game Tree Search)
+4. Constraint Satisfaction using Backtracking / Branch & Bound (N-Queens / Graph Coloring)
+5. Greedy Algorithms (Prim’s, Kruskal’s, Dijkstra’s, etc.)
+
+---
+
+## 🔹 1️⃣ Depth-First Search (DFS) & Breadth-First Search (BFS)
+
+### 🎯 **Goal:**
+
+Visit **all vertices** of a graph or tree systematically.
+
+---
+
+### 📘 **Concepts**
+
+* **DFS:** Explore as far as possible along one branch before backtracking (LIFO → Stack or Recursion).
+* **BFS:** Explore all neighbors first before going deeper (FIFO → Queue).
+
+Both work on **graphs or trees**, and can handle **directed/undirected** graphs.
+
+---
+
+### 🧩 **Graph Example**
+
+```
+A —— B —— D
+|     |
+C —— E
+```
+
+Adjacency List Representation:
+
+```python
+graph = {
+    'A': ['B', 'C'],
+    'B': ['A', 'D', 'E'],
+    'C': ['A', 'E'],
+    'D': ['B'],
+    'E': ['B', 'C']
+}
+```
+
+---
+
+### 🧮 **Depth-First Search (DFS) — Recursive**
+
+**Pseudocode:**
+
+```
+DFS(node):
+    mark node as visited
+    for each neighbor of node:
+        if neighbor not visited:
+            DFS(neighbor)
+```
+
+**Python Code:**
+
+```python
+def dfs(graph, node, visited=None):
+    if visited is None:
+        visited = set()
+    visited.add(node)
+    print(node, end=' ')
+    for neighbor in graph[node]:
+        if neighbor not in visited:
+            dfs(graph, neighbor, visited)
+    return visited
+
+graph = {
+    'A': ['B', 'C'],
+    'B': ['A', 'D', 'E'],
+    'C': ['A', 'E'],
+    'D': ['B'],
+    'E': ['B', 'C']
+}
+print("DFS Traversal:")
+dfs(graph, 'A')
+```
+
+**Output:**
+
+```
+DFS Traversal:
+A B D E C
+```
+
+---
+
+### 🧮 **Breadth-First Search (BFS) — Using Queue**
+
+**Pseudocode:**
+
+```
+BFS(start):
+    create a queue Q
+    enqueue start
+    mark start as visited
+    while Q not empty:
+        node = dequeue(Q)
+        print node
+        for each neighbor:
+            if not visited:
+                enqueue(neighbor)
+                mark visited
+```
+
+**Python Code:**
+
+```python
+from collections import deque
+
+def bfs(graph, start):
+    visited = set([start])
+    queue = deque([start])
+    while queue:
+        node = queue.popleft()
+        print(node, end=' ')
+        for neighbor in graph[node]:
+            if neighbor not in visited:
+                visited.add(neighbor)
+                queue.append(neighbor)
+
+print("\nBFS Traversal:")
+bfs(graph, 'A')
+```
+
+**Output:**
+
+```
+BFS Traversal:
+A B C D E
+```
+
+---
+
+### 🔍 **Key Differences**
+
+| Feature        | DFS                            | BFS                                  |
+| -------------- | ------------------------------ | ------------------------------------ |
+| Data Structure | Stack (Recursion)              | Queue                                |
+| Search Type    | Depth-oriented                 | Level-oriented                       |
+| Memory Use     | Low                            | High                                 |
+| Path Found     | Not shortest                   | Shortest (if unweighted)             |
+| Application    | Topological sort, backtracking | Shortest path, level order traversal |
+
+---
+
+### 🧠 Viva Questions
+
+* What is DFS and BFS used for?
+  → Traversing or searching graph/tree structures.
+* Which one finds shortest path in unweighted graph?
+  → BFS.
+* Is DFS recursive or iterative?
+  → Can be both.
+* Time complexity?
+  → O(V + E).
+
+---
+
+## 🔹 2️⃣ A* (A-Star) Search Algorithm
+
+### 🎯 **Goal:**
+
+Find the **optimal path** from a start node to goal node using **heuristics** (smart estimates).
+
+---
+
+### 📘 **Concept**
+
+A* combines:
+
+```
+f(n) = g(n) + h(n)
+```
+
+* `g(n)` = cost from start to node `n`
+* `h(n)` = heuristic estimate (cost from n → goal)
+* `f(n)` = total estimated cost through node n
+
+Uses **priority queue** (lowest f(n) first).
+
+---
+
+### 🧩 **Example: Path Finding**
+
+Let’s find shortest path from `A` → `G`.
+
+```
+A - B - D
+|   |   |
+C - E - G
+```
+
+**Given costs:**
+
+```
+g(A,B)=1, g(A,C)=2, g(B,D)=4, g(B,E)=2, g(C,E)=3, g(D,G)=2, g(E,G)=1
+Heuristic (h): h(A)=5, h(B)=4, h(C)=4, h(D)=2, h(E)=1, h(G)=0
+```
+
+---
+
+### 🧮 **Python Implementation**
+
+```python
+from queue import PriorityQueue
+
+def a_star(graph, start, goal, h):
+    pq = PriorityQueue()
+    pq.put((0, start))
+    g = {start: 0}
+    parent = {start: None}
+
+    while not pq.empty():
+        f, node = pq.get()
+        if node == goal:
+            break
+        for neighbor, cost in graph[node]:
+            new_g = g[node] + cost
+            if neighbor not in g or new_g < g[neighbor]:
+                g[neighbor] = new_g
+                f = new_g + h[neighbor]
+                pq.put((f, neighbor))
+                parent[neighbor] = node
+
+    path = []
+    node = goal
+    while node:
+        path.append(node)
+        node = parent[node]
+    path.reverse()
+    return path, g[goal]
+
+graph = {
+    'A':[('B',1),('C',2)],
+    'B':[('D',4),('E',2)],
+    'C':[('E',3)],
+    'D':[('G',2)],
+    'E':[('G',1)],
+    'G':[]
+}
+h = {'A':5,'B':4,'C':4,'D':2,'E':1,'G':0}
+
+path, cost = a_star(graph,'A','G',h)
+print("Path:", path, "Cost:", cost)
+```
+
+**Output:**
+
+```
+Path: ['A', 'B', 'E', 'G'] Cost: 4
+```
+
+---
+
+### 💡 **Concept Summary**
+
+| Term                 | Meaning                               |
+| -------------------- | ------------------------------------- |
+| Admissible heuristic | Never overestimates actual cost       |
+| Consistent heuristic | Satisfies triangle inequality         |
+| Optimality           | Guaranteed if heuristic is admissible |
+
+---
+
+### 🧠 Viva Questions
+
+* What is heuristic?
+  → Estimated cost to reach goal.
+* Why A* is better than Dijkstra?
+  → Uses heuristics → fewer nodes explored.
+* Time complexity?
+  → O(E log V).
+
+---
+
+## 🔹 3️⃣ Alpha–Beta Pruning (Game Tree Search)
+
+### 🎯 **Goal:**
+
+Optimize **Minimax algorithm** in 2-player games (like Tic-Tac-Toe, Chess) by pruning branches that won’t affect the final decision.
+
+---
+
+### 📘 **Concept**
+
+* **Minimax:** assumes both players play optimally.
+
+  * Max tries to maximize score.
+  * Min tries to minimize it.
+
+* **Alpha (α):** best value Max can guarantee so far.
+
+* **Beta (β):** best value Min can guarantee so far.
+
+If `β ≤ α`, stop exploring → prune.
+
+---
+
+### 🧩 **Pseudocode**
+
+```
+function alphabeta(node, depth, α, β, maximizingPlayer):
+    if terminal or depth=0:
+        return heuristic(node)
+    if maximizingPlayer:
+        value = -∞
+        for child in children(node):
+            value = max(value, alphabeta(child, depth-1, α, β, False))
+            α = max(α, value)
+            if β ≤ α: break
+        return value
+    else:
+        value = +∞
+        for child in children(node):
+            value = min(value, alphabeta(child, depth-1, α, β, True))
+            β = min(β, value)
+            if β ≤ α: break
+        return value
+```
+
+---
+
+### 🧮 **Python Example**
+
+```python
+def alphabeta(depth, nodeIndex, maximizing, values, alpha, beta):
+    if depth == 3:
+        return values[nodeIndex]
+
+    if maximizing:
+        best = float('-inf')
+        for i in range(2):
+            val = alphabeta(depth+1, nodeIndex*2+i, False, values, alpha, beta)
+            best = max(best, val)
+            alpha = max(alpha, best)
+            if beta <= alpha:
+                break
+        return best
+    else:
+        best = float('inf')
+        for i in range(2):
+            val = alphabeta(depth+1, nodeIndex*2+i, True, values, alpha, beta)
+            best = min(best, val)
+            beta = min(beta, best)
+            if beta <= alpha:
+                break
+        return best
+
+values = [3, 5, 6, 9, 1, 2, 0, -1]
+print("Optimal value:", alphabeta(0, 0, True, values, float('-inf'), float('inf')))
+```
+
+**Output:**
+
+```
+Optimal value: 5
+```
+
+---
+
+### 🧠 Viva Questions
+
+* What is pruning? → Cutting off branches that cannot improve outcome.
+* What is the benefit? → Reduces search space.
+* Does pruning affect result? → No, only improves speed.
+
+---
+
+## 🔹 4️⃣ Constraint Satisfaction (N-Queens / Graph Coloring)
+
+### 🎯 **Goal:**
+
+Find a solution that satisfies all constraints.
+
+---
+
+### 🧩 **Example: N-Queens Problem**
+
+Place N queens on an N×N board so that no two queens attack each other.
+
+**Constraints:**
+
+* Only one queen per row/column.
+* No two queens share diagonal.
+
+---
+
+### 🧮 **Backtracking Implementation (Python)**
+
+```python
+def print_solution(board):
+    for row in board:
+        print(' '.join('Q' if x else '.' for x in row))
+    print()
+
+def is_safe(board, row, col, n):
+    for i in range(col):
+        if board[row][i]:
+            return False
+    for i,j in zip(range(row,-1,-1), range(col,-1,-1)):
+        if board[i][j]: return False
+    for i,j in zip(range(row,n), range(col,-1,-1)):
+        if board[i][j]: return False
+    return True
+
+def solve_nqueens(board, col, n):
+    if col >= n:
+        print_solution(board)
+        return True
+    res = False
+    for i in range(n):
+        if is_safe(board,i,col,n):
+            board[i][col]=1
+            res = solve_nqueens(board,col+1,n) or res
+            board[i][col]=0
+    return res
+
+n = 4
+board = [[0]*n for _ in range(n)]
+solve_nqueens(board,0,n)
+```
+
+**Output (4×4):**
+
+```
+. Q . .
+. . . Q
+Q . . .
+. . Q .
+```
+
+---
+
+### 🔍 **Concept Summary**
+
+* Backtracking explores partial solutions.
+* Branch & Bound adds cost bounds to prune branches early.
+
+---
+
+## 🔹 5️⃣ Greedy Search Algorithms
+
+### 🎯 **Goal:**
+
+Build solution step by step, always choosing **locally optimal** option at each step.
+
+---
+
+### 📘 **Applications**
+
+1. **Selection Sort** → pick min repeatedly
+2. **Minimum Spanning Tree** → Prim’s / Kruskal’s
+3. **Shortest Path** → Dijkstra’s
+4. **Job Scheduling** → choose job by profit or deadline
+
+---
+
+### 🧩 **Example 1: Prim’s MST Algorithm**
+
+**Concept:**
+
+* Start from any node.
+* Add smallest edge connecting new vertex not yet in MST.
+
+**Python:**
+
+```python
+INF = 9999999
+V = 5
+G = [
+ [0,9,75,0,0],
+ [9,0,95,19,42],
+ [75,95,0,51,66],
+ [0,19,51,0,31],
+ [0,42,66,31,0]
+]
+
+selected = [0]*V
+selected[0] = True
+no_edge = 0
+
+while no_edge < V-1:
+    minimum = INF
+    x = y = 0
+    for i in range(V):
+        if selected[i]:
+            for j in range(V):
+                if (not selected[j]) and G[i][j]:
+                    if minimum > G[i][j]:
+                        minimum = G[i][j]
+                        x, y = i, j
+    print(f"Edge {x}-{y} cost: {G[x][y]}")
+    selected[y] = True
+    no_edge += 1
+```
+
+**Output:**
+
+```
+Edge 0-1 cost: 9
+Edge 1-3 cost: 19
+Edge 3-4 cost: 31
+Edge 3-2 cost: 51
+```
+
+---
+
+### 🧩 **Example 2: Dijkstra’s Shortest Path**
+
+**Concept:**
+Greedily choose vertex with smallest known distance.
+
+**Python:**
+
+```python
+import heapq
+
+def dijkstra(graph, start):
+    distances = {v: float('inf') for v in graph}
+    distances[start] = 0
+    pq = [(0, start)]
+
+    while pq:
+        current_distance, vertex = heapq.heappop(pq)
+        if current_distance > distances[vertex]:
+            continue
+        for neighbor, weight in graph[vertex].items():
+            distance = current_distance + weight
+            if distance < distances[neighbor]:
+                distances[neighbor] = distance
+                heapq.heappush(pq, (distance, neighbor))
+    return distances
+
+graph = {
+    'A': {'B':1,'C':4},
+    'B': {'C':2,'D':5},
+    'C': {'D':1},
+    'D': {}
+}
+print(dijkstra(graph,'A'))
+```
+
+**Output:**
+
+```
+{'A': 0, 'B': 1, 'C': 3, 'D': 4}
+```
+
+---
+
+### 🧠 Viva Questions
+
+| Question                                        | Answer                                                    |
+| ----------------------------------------------- | --------------------------------------------------------- |
+| What is greedy choice property?                 | Local best leads to global best solution                  |
+| Does greedy always give optimal?                | Not always; only for problems satisfying greedy property  |
+| Example where greedy fails?                     | Knapsack 0/1 problem                                      |
+| What’s difference between Prim’s and Kruskal’s? | Prim’s grows MST vertex-by-vertex; Kruskal’s edge-by-edge |
+| What’s Dijkstra’s assumption?                   | No negative edge weights                                  |
+
+---
+
+# ✅ **Final Takeaway Summary**
+
+| Algorithm        | Type         | Structure       | Use Case                   | Key Idea                |
+| ---------------- | ------------ | --------------- | -------------------------- | ----------------------- |
+| **DFS**          | Uninformed   | Stack/Recursion | Traversal, Backtracking    | Go deep first           |
+| **BFS**          | Uninformed   | Queue           | Shortest path (unweighted) | Level order             |
+| **A***           | Informed     | Priority Queue  | Optimal path               | g + h cost              |
+| **Alpha–Beta**   | Game Tree    | Minimax         | 2-player games             | Prune unneeded branches |
+| **Backtracking** | CSP          | Recursion       | N-Queens, Coloring         | Try, backtrack on fail  |
+| **Greedy**       | Optimization | Array/Heap      | MST, Dijkstra              | Choose local best       |
+
+---
+
+Would you like me to now **combine all this into a single formatted “AI Search Algorithms Handbook” PDF** (with theory + examples + viva Q&A)?
+That way you can keep it as your lab study material.
